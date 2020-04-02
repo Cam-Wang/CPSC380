@@ -1,10 +1,24 @@
+/*
+    Colaberated with James Romerro
+    Made for CPSC 380
+    By Cameron Wang
+
+    Refernces:
+    Class notes and examples
+
+*/
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/ipc.h>
+
 int main(int argc, char * argv[])
 {
     pid_t pid;   
 
     FILE *input_file, *output_file;
 
-    char file_buffer[MAX_BUF_SIZE];
+    char file_buffer[255];
 
     int smem_id;
 
@@ -17,13 +31,13 @@ int main(int argc, char * argv[])
     if(argc == 1)//basic error checking
     {
         printf("Error: Please provide input file name\n");
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     if(argc != 2)//checks number of args
     {
         printf("Error: Incorrect number of arguments passed\n");
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     initializeWait();
@@ -31,24 +45,24 @@ int main(int argc, char * argv[])
     if ((pid = fork()) < 0)//check if fork worked
     {
         perror("fork");
-        exit(EXIT_FAILURE);
+        return 1;
     }
     else if (pid != 0)//parent process starts here
     {
         if((input_file = fopen(argv[1],"r")) == NULL)
         {
             perror("fopen");
-            exit(EXIT_FAILURE);
+            return 1;
         }
         if((smem_id = shmget(smem_key, sizeof(struct shared_mem_struct), IPC_CREAT | 0666))<0)//create shared memory
         {  
             perror("shmget");
-            exit(EXIT_FAILURE);
+            return 1;
         }
         if((temp_ptr = shmat(smem_id, (void *)0, 0)) == (void *)-1)//attempts to attatch shared memory and error checks
         {  
             perror("shmat");
-            exit(EXIT_FAILURE);
+            return 1;
         }
         shared_mem = (struct shared_mem_struct *) temp_ptr;
         shared_mem->count = 0; // Set the counter to 0
@@ -73,12 +87,12 @@ int main(int argc, char * argv[])
         if(shmdt(shared_mem) == -1)
         {
             perror("shmdt");
-            exit(EXIT_FAILURE);
+            return 1;
         }
         if(shmctl(smem_id, IPC_RMID, 0) == -1)
         {
             perror("shmctl");
-            exit(EXIT_FAILURE);
+            return 1;
         }
         printf("\nSuccess: The input file provided by you has been successfully copied via shared memory to output file named \"ouput.txt\" in the current working directory.\n\n");
 
@@ -88,17 +102,17 @@ int main(int argc, char * argv[])
         if((output_file = fopen("output.txt","w")) == NULL)
         {
             perror("fopen");
-            exit(EXIT_FAILURE);
+            return 1;
         }
         if((smem_id = shmget(smem_key, sizeof(struct shared_mem_struct), IPC_CREAT | 0666))<0)
         {
             perror("shmget");
-            exit(EXIT_FAILURE);
+            return 1;
         }
         if((temp_ptr = shmat(smem_id, (void *)0, 0)) == (void *)-1)//attempting to attatch shared memory and error checks
         {
             perror("shmat");
-            exit(EXIT_FAILURE);
+            return 1;
         }
         shared_mem = (struct shared_mem_struct *) temp_ptr;
         while(shared_mem->count != -1)
@@ -121,5 +135,5 @@ int main(int argc, char * argv[])
             exit(EXIT_FAILURE)
             kill(getpid(), SIGTERM);   
         }
-        exit(EXIT_SUCCESS);
+        return 0;
     }  
